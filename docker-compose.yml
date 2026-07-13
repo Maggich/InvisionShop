@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # 1. База данных PostgreSQL
+  db:
+    image: postgres:16-alpine
+    container_name: django_db
+    environment:
+      - POSTGRES_DB=django_db
+      - POSTGRES_USER=Admin
+      - POSTGRES_PASSWORD=1234
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+
+  # 2. Бэкенд Django
+  backend:
+    build: ./backend
+    container_name: django_backend
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=db
+      - DB_NAME=django_db
+      - DB_USER=Admin
+      - DB_PASSWORD=1234
+      - DB_PORT=5432
+    depends_on:
+      - db
+
+  # 3. Фронтенд React + Vite + TS
+  frontend:
+    build: ./frontend/front
+    container_name: react_frontend
+    # Эта команда сначала ставит зависимости внутри Docker, а затем запускает Vite с очисткой кэша
+    command: sh -c "npm install && npm run dev -- --host --force"
+    volumes:
+      - ./frontend/front:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
